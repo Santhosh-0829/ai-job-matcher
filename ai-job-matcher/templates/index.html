@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resume and job match checker</title>
+<style>
+  :root {
+    --bg: #eceff5;
+    --panel: #ffffff;
+    --ink: #151d2b;
+    --muted: #5b6577;
+    --line: #d5dae5;
+    --blue: #2447d6;
+    --blue-soft: #e4e9fc;
+    --good: #0f7a55;
+    --good-soft: #dcf3ea;
+    --bad: #b8400f;
+    --bad-soft: #fde8dd;
+    --mark: #fff0a3;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1420; --panel: #181f2f; --ink: #e8ecf6; --muted: #9aa5ba;
+      --line: #2b3550; --blue: #8da4ff; --blue-soft: #232d52;
+      --good: #4fd1a1; --good-soft: #14352b; --bad: #ff9566; --bad-soft: #3a2218;
+      --mark: #5a4d12;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+    line-height: 1.5;
+  }
+  header { padding: 28px 24px 8px; max-width: 1120px; margin: 0 auto; }
+  h1 { margin: 0 0 4px; font-size: 1.7rem; letter-spacing: -0.01em; }
+  h1 span { background: var(--mark); padding: 0 6px; border-radius: 3px; }
+  header p { margin: 0; color: var(--muted); max-width: 62ch; }
+  main {
+    max-width: 1120px; margin: 0 auto; padding: 20px 24px 48px;
+    display: grid; grid-template-columns: minmax(0, 420px) minmax(0, 1fr); gap: 24px;
+    align-items: start;
+  }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 20px;
+  }
+  label { display: block; font-weight: 600; margin: 0 0 6px; }
+  .field { margin-bottom: 18px; }
+  textarea {
+    width: 100%; min-height: 150px; resize: vertical; padding: 10px 12px;
+    border: 1px solid var(--line); border-radius: 8px; background: transparent;
+    color: var(--ink); font: inherit; font-size: 0.93rem;
+  }
+  textarea:focus, button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--blue); outline-offset: 2px;
+  }
+  .drop {
+    display: block; border: 2px dashed var(--line); border-radius: 8px;
+    padding: 18px; text-align: center; cursor: pointer; color: var(--muted);
+    font-weight: 400; transition: border-color .15s, background .15s;
+  }
+  .drop:hover, .drop.over { border-color: var(--blue); background: var(--blue-soft); }
+  .drop strong { color: var(--ink); }
+  input[type=file] { position: absolute; width: 1px; height: 1px; opacity: 0; }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  button {
+    font: inherit; font-weight: 600; border-radius: 8px; padding: 10px 18px;
+    cursor: pointer; border: 1px solid var(--blue);
+  }
+  .primary { background: var(--blue); color: #fff; }
+  @media (prefers-color-scheme: dark) { .primary { color: #0f1420; } }
+  .primary:disabled { opacity: .6; cursor: wait; }
+  .ghost { background: transparent; color: var(--blue); }
+  .hint { color: var(--muted); font-size: .85rem; margin-top: 6px; }
+  .error {
+    background: var(--bad-soft); color: var(--bad); border-radius: 8px;
+    padding: 10px 12px; margin-top: 14px; display: none;
+  }
+
+  /* results */
+  .empty { color: var(--muted); text-align: center; padding: 60px 20px; }
+  #results { display: none; }
+  .top { display: grid; grid-template-columns: 170px 1fr; gap: 24px; align-items: center; }
+  @media (max-width: 560px) { .top { grid-template-columns: 1fr; justify-items: center; } }
+  .ring { position: relative; width: 170px; height: 170px; }
+  .ring svg { transform: rotate(-90deg); }
+  .ring .num {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+  }
+  .ring .num b { font-size: 2.6rem; line-height: 1; font-variant-numeric: tabular-nums; }
+  .ring .num small { color: var(--muted); }
+  .bars { width: 100%; }
+  .bar { margin-bottom: 12px; }
+  .bar .head { display: flex; justify-content: space-between; font-size: .9rem; }
+  .track { height: 8px; background: var(--line); border-radius: 99px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 99px; background: var(--blue); width: 0; transition: width .6s ease; }
+  @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+  h2 { font-size: 1.05rem; margin: 26px 0 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { padding: 4px 11px; border-radius: 99px; font-size: .88rem; font-weight: 600; }
+  .chip.good { background: var(--good-soft); color: var(--good); }
+  .chip.bad { background: var(--bad-soft); color: var(--bad); border: 1px dashed var(--bad); }
+  .chip.neutral { background: var(--blue-soft); color: var(--blue); }
+  .none { color: var(--muted); font-size: .9rem; }
+  ul.checks, ul.tips { list-style: none; padding: 0; margin: 0; }
+  ul.checks li { display: flex; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+  ul.checks li:last-child { border-bottom: 0; }
+  .mark { font-weight: 700; width: 1.2em; flex: none; }
+  .ok .mark { color: var(--good); } .no .mark { color: var(--bad); }
+  ul.tips li { background: var(--mark); color: #151d2b; padding: 9px 12px; border-radius: 6px; margin-bottom: 8px; font-size: .92rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Resume and <span>job match</span> checker</h1>
+  <p>Upload your resume as a PDF, paste a job description, and see your match score, the skills you are missing, and how well an ATS can read your resume.</p>
+</header>
+
+<main>
+  <section class="panel" aria-label="Inputs">
+    <div class="field">
+      <label for="resume">Your resume (PDF)</label>
+      <label class="drop" id="drop" for="resume">
+        <span id="fileName"><strong>Choose a PDF</strong> or drop it here</span>
+      </label>
+      <input type="file" id="resume" accept="application/pdf">
+      <div class="hint">Use a PDF exported from Word or Google Docs. Scanned images cannot be read.</div>
+    </div>
+
+    <div class="field">
+      <label for="jd">Job description</label>
+      <textarea id="jd" placeholder="Paste the full job posting here"></textarea>
+      <div class="hint"><button class="ghost" id="sample" type="button" style="padding:4px 10px;font-size:.85rem">Use sample job</button></div>
+    </div>
+
+    <div class="row">
+      <button class="primary" id="go" type="button">Check my match</button>
+    </div>
+    <div class="error" id="error" role="alert"></div>
+  </section>
+
+  <section class="panel" aria-live="polite">
+    <div class="empty" id="empty">Your results will appear here.</div>
+
+    <div id="results">
+      <div class="top">
+        <div class="ring">
+          <svg width="170" height="170" viewBox="0 0 170 170" aria-hidden="true">
+            <circle cx="85" cy="85" r="72" fill="none" stroke="var(--line)" stroke-width="14"/>
+            <circle id="arc" cx="85" cy="85" r="72" fill="none" stroke="var(--blue)" stroke-width="14"
+                    stroke-linecap="round" stroke-dasharray="452.4" stroke-dashoffset="452.4"
+                    style="transition: stroke-dashoffset .8s ease"/>
+          </svg>
+          <div class="num"><b id="score">0%</b><small>job match</small></div>
+        </div>
+        <div class="bars">
+          <div class="bar"><div class="head"><span>Skill coverage</span><span id="v1"></span></div><div class="track"><div class="fill" id="b1"></div></div></div>
+          <div class="bar"><div class="head"><span>Wording similarity</span><span id="v2"></span></div><div class="track"><div class="fill" id="b2"></div></div></div>
+          <div class="bar"><div class="head"><span>ATS readiness</span><span id="v3"></span></div><div class="track"><div class="fill" id="b3"></div></div></div>
+        </div>
+      </div>
+
+      <h2>Skills you match</h2>
+      <div class="chips" id="matched"></div>
+
+      <h2>Skills to add</h2>
+      <div class="chips" id="missing"></div>
+
+      <h2>Other skills on your resume</h2>
+      <div class="chips" id="extra"></div>
+
+      <h2>ATS checklist</h2>
+      <ul class="checks" id="checks"></ul>
+
+      <h2>What to do next</h2>
+      <ul class="tips" id="tips"></ul>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+const SAMPLE = `Java Developer (Fresher)
+We are hiring freshers with strong knowledge of Java, OOP concepts, SQL and MySQL.
+Experience with Spring Boot, REST APIs, JDBC and Git is preferred. Knowledge of HTML, CSS and JavaScript is a plus. Good problem solving, data structures and communication skills are required. Familiarity with Agile and unit testing is desirable.`;
+
+let file = null;
+function setFile(f) {
+  file = f;
+  $("fileName").innerHTML = f ? `<strong>${f.name.replace(/[<>&]/g, "")}</strong> ready` : "<strong>Choose a PDF</strong> or drop it here";
+}
+$("resume").addEventListener("change", e => setFile(e.target.files[0] || null));
+const drop = $("drop");
+["dragover", "dragenter"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("over"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("over"); }));
+drop.addEventListener("drop", e => { if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]); });
+$("sample").addEventListener("click", () => { $("jd").value = SAMPLE; });
+
+function chips(el, items, cls, emptyMsg) {
+  el.innerHTML = items.length
+    ? items.map(s => `<span class="chip ${cls}">${s}</span>`).join("")
+    : `<span class="none">${emptyMsg}</span>`;
+}
+function setBar(n, v) { $("b" + n).style.width = v + "%"; $("v" + n).textContent = v + "%"; }
+
+function show(r) {
+  $("empty").style.display = "none";
+  $("results").style.display = "block";
+  $("score").textContent = r.match_score + "%";
+  $("arc").style.strokeDashoffset = 452.4 * (1 - r.match_score / 100);
+  setBar(1, r.skill_coverage); setBar(2, r.text_similarity); setBar(3, r.ats_score);
+  chips($("matched"), r.matched, "good", "No matching skills found yet.");
+  chips($("missing"), r.missing, "bad", r.job_skills_found ? "Nothing missing. Great match." : "No known skills detected in the job description.");
+  chips($("extra"), r.extra, "neutral", "None.");
+  $("checks").innerHTML = r.checks.map(c =>
+    `<li class="${c.ok ? "ok" : "no"}"><span class="mark">${c.ok ? "✓" : "✗"}</span><span>${c.label}</span></li>`).join("");
+  $("tips").innerHTML = r.tips.length
+    ? r.tips.map(t => `<li>${t}</li>`).join("")
+    : `<li>Your resume is in good shape for this job.</li>`;
+}
+
+$("go").addEventListener("click", async () => {
+  const err = $("error"); err.style.display = "none";
+  if (!file) { err.textContent = "Choose your resume PDF first."; err.style.display = "block"; return; }
+  const fd = new FormData();
+  fd.append("resume", file);
+  fd.append("job_description", $("jd").value);
+  $("go").disabled = true; $("go").textContent = "Checking...";
+  try {
+    const res = await fetch("/api/analyze", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Something went wrong.");
+    show(data);
+  } catch (e) {
+    err.textContent = e.message; err.style.display = "block";
+  } finally {
+    $("go").disabled = false; $("go").textContent = "Check my match";
+  }
+});
+</script>
+</body>
+</html>

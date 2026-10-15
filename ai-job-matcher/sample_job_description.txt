@@ -1,0 +1,5 @@
+Java Developer (Fresher) - Cognizant
+We are hiring freshers with strong knowledge of Java, OOP concepts, SQL and MySQL.
+Experience with Spring Boot, REST APIs, JDBC and Git is preferred. Knowledge of
+HTML, CSS and JavaScript is a plus. Good problem solving, data structures and
+communication skills are required. Familiarity with Agile and unit testing is desirable.
